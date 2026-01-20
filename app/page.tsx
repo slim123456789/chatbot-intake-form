@@ -55,7 +55,7 @@ export default function PinnedContextChat() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentQ = QUESTIONS[step];
 
-  // logic for anchoring and handling keyboard resize
+  // Logic for the 80px Safe-Zone Anchoring
   useEffect(() => {
     const scrollToActive = () => {
       if (activeQuestionRef.current && scrollContainerRef.current) {
@@ -64,26 +64,18 @@ export default function PinnedContextChat() {
         const targetTop = target.offsetTop;
         
         container.scrollTo({
-          top: targetTop - 60, // Smaller offset to keep context visible above keyboard
+          top: targetTop - 80, 
           behavior: 'smooth'
         });
       }
     };
 
-    const timer = setTimeout(scrollToActive, 300);
-    // Listen for resize events (common when keyboard toggles)
-    window.addEventListener('resize', scrollToActive);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', scrollToActive);
-    };
+    const timer = setTimeout(scrollToActive, 200);
+    return () => clearTimeout(timer);
   }, [step, isTyping, history.length, selectedMulti]);
 
   const submitAnswer = (value: any) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return;
-    
-    // Validation for key legal gates
     if ((currentQ.id === 'accuracy' || currentQ.id === 'age') && (value === 'No' || value === 'I do not agree')) {
         alert("Agreement is required to proceed.");
         return;
@@ -116,24 +108,19 @@ export default function PinnedContextChat() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[#FDFDFF] font-sans antialiased overflow-hidden">
-      {/* Navbar */}
       <nav className="px-6 py-4 bg-white border-b flex items-center justify-between z-50 flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="relative h-6 w-32">
             <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
           </div>
         </div>
-        <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div 
-            className="h-full bg-[#0033FF]" 
-            animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} 
-          />
+        <div className="h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
+          <motion.div className="h-full bg-[#0033FF]" animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} />
         </div>
       </nav>
 
-      {/* Main Chat Area */}
       <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
-        <div className="max-w-xl mx-auto pt-8 pb-[70vh]">
+        <div className="max-w-xl mx-auto pt-8 pb-[80vh]">
           <AnimatePresence mode="popLayout">
             {history.map((msg, i) => {
               const isLatestBot = i === history.length - 1 && msg.role === 'bot';
@@ -141,56 +128,45 @@ export default function PinnedContextChat() {
                 <motion.div 
                   key={i} 
                   ref={isLatestBot ? activeQuestionRef : null}
-                  initial={{ opacity: 0, y: 10 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8`}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8 scroll-mt-24`}
                 >
-                  <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-base font-medium shadow-sm border ${
+                  <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium shadow-sm border ${
                     msg.role === 'user' ? 'bg-[#0033FF] text-white border-transparent' : 'bg-white text-slate-700 border-slate-100'
                   }`}>
-                    {msg.role === 'bot' && msg.category === 'legal' && (
-                        <div className="text-[10px] font-black uppercase text-[#0033FF] mb-1 tracking-widest">
-                            Security Notice
-                        </div>
-                    )}
+                    {msg.role === 'bot' && msg.category === 'legal' && <div className="text-[10px] font-black uppercase text-[#0033FF] mb-1 tracking-widest">Security Notice</div>}
                     {msg.content}
                   </div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
-          {isTyping && (
-            <div className="flex space-x-1 ml-2 mb-8">
-              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          )}
+          {isTyping && <div className="w-12 h-8 bg-slate-100 rounded-2xl animate-pulse ml-2" />}
         </div>
       </main>
 
-      {/* Input / Footer Area */}
-      <footer className="bg-white border-t px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+      <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-xl mx-auto">
           {step < QUESTIONS.length ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              {/* Specialized Height Input */}
+              {/* HEIGHT INPUT - REVERTED TO SPECIAL FT/IN FORMAT */}
               {currentQ.type === 'height' ? (
-                <div className="flex gap-3 items-center">
+                <div className="flex gap-4 items-center">
                   <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Feet</label>
-                    <input type="number" value={heightFt} onChange={(e) => setHeightFt(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-lg font-medium text-slate-900" placeholder="5" />
+                    <input type="number" value={heightFt} onChange={(e) => setHeightFt(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="5" />
                   </div>
                   <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Inches</label>
-                    <input type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-lg font-medium text-slate-900" placeholder="10" />
+                    <input type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="10" />
                   </div>
                   <button onClick={() => submitAnswer(`${heightFt}'${heightIn}"`)} className="h-14 w-14 bg-[#0033FF] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><ArrowRight size={24}/></button>
                 </div>
               ) : currentQ.type === 'multiple' ? (
                 <div className="space-y-3">
-                    <div className="max-h-[30vh] overflow-y-auto space-y-2 pr-1 mask-gradient">
+                  <div className="relative">
+                    <div className="max-h-[35vh] overflow-y-auto space-y-2 pr-1 scrollbar-hide mask-gradient">
                       {currentQ.options?.map(opt => (
                         <button 
                           key={opt} 
@@ -198,25 +174,26 @@ export default function PinnedContextChat() {
                             if (opt === 'None of the above') setSelectedMulti(['None of the above']);
                             else setSelectedMulti(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev.filter(x => x !== 'None of the above'), opt]);
                           }} 
-                          className={`w-full p-4 rounded-xl border-2 text-left text-sm font-black transition-all flex justify-between items-center active:scale-[0.98] ${
+                          className={`w-full p-4 rounded-xl border-2 text-left text-sm font-black transition-all flex justify-between items-center active:bg-[#0033FF] active:text-white active:scale-[0.98] ${
                             selectedMulti.includes(opt) ? 'border-[#0033FF] bg-blue-50 text-[#0033FF]' : 'border-slate-200 bg-slate-50 text-slate-800'
                           }`}
                         >
                           {opt}
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMulti.includes(opt) ? 'bg-[#0033FF] border-[#0033FF] text-white' : 'border-slate-300'}`}>
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMulti.includes(opt) ? 'bg-white border-white text-[#0033FF]' : 'border-slate-300'}`}>
                             {selectedMulti.includes(opt) && <Check size={12} strokeWidth={4}/>}
                           </div>
                         </button>
                       ))}
                     </div>
-                  <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl active:scale-95 transition-transform">Confirm Selection</button>
+                  </div>
+                  <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl">Confirm Selection</button>
                 </div>
               ) : currentQ.type === 'choice' || currentQ.type === 'dropdown' ? (
                 <div className="grid grid-cols-1 gap-2">
                   {currentQ.options?.map(opt => (
                     <button 
                       key={opt} onClick={() => submitAnswer(opt)} 
-                      className="w-full p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-black flex justify-between items-center group transition-all uppercase text-xs tracking-widest active:bg-[#0033FF] active:text-white"
+                      className="w-full p-5 rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-black flex justify-between items-center group transition-all uppercase text-xs tracking-widest active:bg-[#0033FF] active:text-white active:border-[#0033FF]"
                     >
                       {opt} <ArrowRight size={16} className="text-[#0033FF] group-active:text-white opacity-60" />
                     </button>
@@ -225,15 +202,13 @@ export default function PinnedContextChat() {
               ) : (
                 <div className="relative">
                   <input
-                    autoFocus 
-                    value={inputValue}
-                    type={currentQ.id === 'phone' ? 'tel' : currentQ.id === 'email' ? 'email' : 'text'}
+                    autoFocus value={inputValue}
                     onChange={(e) => setInputValue(currentQ.id === 'phone' ? formatPhoneNumber(e.target.value) : currentQ.id === 'dob' ? formatDOB(e.target.value) : e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitAnswer(inputValue)}
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#0033FF] text-slate-900 font-medium text-base placeholder:text-slate-400 appearance-none"
+                    className="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#0033FF] text-slate-900 font-medium text-lg placeholder:text-slate-400 appearance-none"
                     placeholder={currentQ.placeholder || "Type here..."}
                   />
-                  <button onClick={() => submitAnswer(inputValue)} className="absolute right-2 top-2 p-2.5 bg-[#0033FF] text-white rounded-xl shadow-md active:scale-90 transition-all"><Send size={20}/></button>
+                  <button onClick={() => submitAnswer(inputValue)} className="absolute right-3 top-3 p-2.5 bg-[#0033FF] text-white rounded-xl shadow-md active:scale-90 transition-all"><Send size={20}/></button>
                 </div>
               )}
             </div>
@@ -242,28 +217,10 @@ export default function PinnedContextChat() {
           )}
         </div>
       </footer>
-
-      {/* Global CSS for Mobile Experience */}
       <style jsx global>{`
-        /* 1. Prevent iOS Auto-Zoom */
-        input, select, textarea {
-          font-size: 16px !important;
-        }
-        
-        /* 2. Custom Scrollbar for desktop, hide for mobile if preferred */
-        ::-webkit-scrollbar {
-          width: 0px;
-        }
-
-        /* 3. Gradient mask for scroll areas */
         .mask-gradient {
           mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
           -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-        }
-
-        /* 4. Improve focus state on iOS */
-        input:focus {
-            background-color: #ffffff;
         }
       `}</style>
     </div>
