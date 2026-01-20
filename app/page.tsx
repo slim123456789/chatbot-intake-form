@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Check, ShieldCheck, ChevronLeft, ArrowRight } from 'lucide-react';
+import { Send, Check, ShieldCheck, ChevronLeft, ArrowRight, ChevronDown } from 'lucide-react';
 
 const PRIMARY_COLOR = '#0033FF';
 
@@ -41,7 +41,7 @@ const QUESTIONS = [
   { id: 'situations', key: 'medical_conditions', text: "Do any of the following situations apply to you?", type: 'multiple', options: ['None of the above', 'G6PD deficiency', 'Seizure disorder', 'Asthma or COPD', 'Serotonergic meds (last 6 months)', 'Pregnant or breastfeeding', 'History of cancer', 'No health check-up in 3 years'] },
 ];
 
-export default function EnhancedChat() {
+export default function FinalEnhancedChat() {
   const [step, setStep] = useState(0);
   const [history, setHistory] = useState<any[]>([{ role: 'bot', content: QUESTIONS[0].text, category: QUESTIONS[0].category }]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -50,16 +50,28 @@ export default function EnhancedChat() {
   const [heightIn, setHeightIn] = useState('');
   const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isHeaderPinned, setIsHeaderPinned] = useState(false);
   
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentQ = QUESTIONS[step];
 
+  // Logic to handle pinning the question to the top for better "anchoring"
   useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+      setIsHeaderPinned(scrollContainerRef.current.scrollTop > 100);
+    };
+
     const timer = setTimeout(() => {
-      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);
-    return () => clearTimeout(timer);
+
+    scrollContainerRef.current?.addEventListener('scroll', handleScroll);
+    return () => {
+      clearTimeout(timer);
+      scrollContainerRef.current?.removeEventListener('scroll', handleScroll);
+    };
   }, [step, isTyping, selectedMulti, history.length]);
 
   const submitAnswer = (value: any) => {
@@ -95,16 +107,38 @@ export default function EnhancedChat() {
   };
 
   return (
-    // SV FIX: Used h-[100dvh] for dynamic viewport height (handles Safari address bar better)
     <div className="flex flex-col h-[100dvh] bg-[#FDFDFF] font-sans antialiased overflow-hidden">
+      {/* Primary Header */}
       <nav className="px-6 py-4 bg-white border-b flex items-center justify-between z-50 flex-shrink-0">
-        <div className="relative h-6 w-32">
-          <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
+        <div className="flex items-center gap-4">
+          {step > 0 && (
+            <button onClick={() => { setStep(step-1); setHistory(prev => prev.slice(0, -2)); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <div className="relative h-6 w-32">
+            <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
+          </div>
         </div>
         <div className="h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
           <motion.div className="h-full bg-[#0033FF]" animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} />
         </div>
       </nav>
+
+      {/* ANCHORING: Sticky Context Header for Multiple Choice */}
+      <AnimatePresence>
+        {isHeaderPinned && step < QUESTIONS.length && (currentQ.type === 'multiple' || currentQ.type === 'choice') && (
+          <motion.div 
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -50, opacity: 0 }}
+            className="absolute top-[65px] left-0 right-0 bg-white/90 backdrop-blur-md px-6 py-3 border-b z-40 shadow-sm"
+          >
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Current Question</p>
+            <p className="text-sm font-bold text-slate-800 line-clamp-1">{currentQ.text}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
         <div className="max-w-xl mx-auto pt-8 pb-10">
@@ -116,7 +150,7 @@ export default function EnhancedChat() {
                   key={i} 
                   ref={isLastBot ? lastMessageRef : null}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-6 scroll-mt-32`}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-6 scroll-mt-[120px]`}
                 >
                   <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium ${
                     msg.role === 'user' ? 'bg-[#0033FF] text-white shadow-lg' : 'bg-white border border-slate-100 text-slate-700 shadow-sm'
@@ -132,32 +166,36 @@ export default function EnhancedChat() {
         </div>
       </main>
 
-      {/* FOOTER: Fixed for iOS Safari with pb-safe and flex-shrink-0 */}
-      <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      {/* FOOTER: Anchored and High-Contrast */}
+      <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-xl mx-auto">
           {step < QUESTIONS.length ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               {currentQ.type === 'multiple' ? (
                 <div className="space-y-3">
-                  <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-1 scrollbar-hide">
-                    {currentQ.options?.map(opt => (
-                      <button 
-                        key={opt} 
-                        onClick={() => {
-                          if (opt === 'None of the above') setSelectedMulti(['None of the above']);
-                          else setSelectedMulti(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev.filter(x => x !== 'None of the above'), opt]);
-                        }} 
-                        // SV FIX: Added active state color change
-                        className={`w-full p-4 rounded-xl border-2 text-left text-sm font-black transition-all flex justify-between items-center active:bg-[#0033FF] active:text-white active:scale-[0.98] ${
-                          selectedMulti.includes(opt) ? 'border-[#0033FF] bg-blue-50 text-[#0033FF]' : 'border-slate-200 bg-slate-50/50 text-slate-800'
-                        }`}
-                      >
-                        {opt}
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMulti.includes(opt) ? 'bg-white border-white text-[#0033FF]' : 'border-slate-300'}`}>
-                          {selectedMulti.includes(opt) && <Check size={12} strokeWidth={4}/>}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <div className="max-h-[35vh] overflow-y-auto space-y-2 pr-1 scrollbar-hide mask-gradient">
+                      {currentQ.options?.map(opt => (
+                        <button 
+                          key={opt} 
+                          onClick={() => {
+                            if (opt === 'None of the above') setSelectedMulti(['None of the above']);
+                            else setSelectedMulti(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev.filter(x => x !== 'None of the above'), opt]);
+                          }} 
+                          className={`w-full p-4 rounded-xl border-2 text-left text-sm font-black transition-all flex justify-between items-center active:bg-[#0033FF] active:text-white active:scale-[0.98] ${
+                            selectedMulti.includes(opt) ? 'border-[#0033FF] bg-blue-50 text-[#0033FF]' : 'border-slate-200 bg-slate-50 text-slate-800'
+                          }`}
+                        >
+                          {opt}
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMulti.includes(opt) ? 'bg-white border-white text-[#0033FF]' : 'border-slate-300'}`}>
+                            {selectedMulti.includes(opt) && <Check size={12} strokeWidth={4}/>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none animate-bounce text-[#0033FF]">
+                      <ChevronDown size={14} />
+                    </div>
                   </div>
                   <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl active:brightness-90">Confirm Selection</button>
                 </div>
@@ -166,10 +204,9 @@ export default function EnhancedChat() {
                   {currentQ.options?.map(opt => (
                     <button 
                       key={opt} onClick={() => submitAnswer(opt)} 
-                      // SV FIX: Added active state color change for Yes/No
-                      className="w-full p-5 rounded-2xl border-2 border-slate-200 bg-slate-50/50 text-slate-900 font-black flex justify-between items-center group transition-all uppercase text-xs tracking-widest active:bg-[#0033FF] active:text-white active:border-[#0033FF] active:scale-[0.98]"
+                      className="w-full p-5 rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-black flex justify-between items-center group transition-all uppercase text-xs tracking-widest active:bg-[#0033FF] active:text-white active:border-[#0033FF]"
                     >
-                      {opt} <ArrowRight size={16} className="text-[#0033FF] group-active:text-white opacity-50 group-hover:opacity-100" />
+                      {opt} <ArrowRight size={16} className="text-[#0033FF] group-active:text-white opacity-60" />
                     </button>
                   ))}
                 </div>
@@ -203,6 +240,12 @@ export default function EnhancedChat() {
           )}
         </div>
       </footer>
+      <style jsx global>{`
+        .mask-gradient {
+          mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+        }
+      `}</style>
     </div>
   );
 }
