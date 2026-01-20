@@ -41,7 +41,7 @@ const QUESTIONS = [
   { id: 'situations', key: 'medical_conditions', text: "Do any of the following situations apply to you?", type: 'multiple', options: ['None of the above', 'G6PD deficiency', 'Seizure disorder', 'Asthma or COPD', 'Serotonergic meds (last 6 months)', 'Pregnant or breastfeeding', 'History of cancer', 'No health check-up in 3 years'] },
 ];
 
-export default function FinalEnhancedChat() {
+export default function PinnedContextChat() {
   const [step, setStep] = useState(0);
   const [history, setHistory] = useState<any[]>([{ role: 'bot', content: QUESTIONS[0].text, category: QUESTIONS[0].category }]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -50,29 +50,31 @@ export default function FinalEnhancedChat() {
   const [heightIn, setHeightIn] = useState('');
   const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isHeaderPinned, setIsHeaderPinned] = useState(false);
   
-  const lastMessageRef = useRef<HTMLDivElement>(null);
+  const activeQuestionRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentQ = QUESTIONS[step];
 
-  // Logic to handle pinning the question to the top for better "anchoring"
+  // PM/SWE SOLUTION: Force the active question to the top of the scrollable area
   useEffect(() => {
-    const handleScroll = () => {
-      if (!scrollContainerRef.current) return;
-      setIsHeaderPinned(scrollContainerRef.current.scrollTop > 100);
+    const scrollToActive = () => {
+      if (activeQuestionRef.current && scrollContainerRef.current) {
+        const container = scrollContainerRef.current;
+        const target = activeQuestionRef.current;
+        
+        // Calculate distance from top of container to the target
+        const targetTop = target.offsetTop;
+        
+        container.scrollTo({
+          top: targetTop - 20, // 20px buffer from the header
+          behavior: 'smooth'
+        });
+      }
     };
 
-    const timer = setTimeout(() => {
-      lastMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 150);
-
-    scrollContainerRef.current?.addEventListener('scroll', handleScroll);
-    return () => {
-      clearTimeout(timer);
-      scrollContainerRef.current?.removeEventListener('scroll', handleScroll);
-    };
-  }, [step, isTyping, selectedMulti, history.length]);
+    const timer = setTimeout(scrollToActive, 100);
+    return () => clearTimeout(timer);
+  }, [step, isTyping, history.length]);
 
   const submitAnswer = (value: any) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return;
@@ -108,52 +110,30 @@ export default function FinalEnhancedChat() {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-[#FDFDFF] font-sans antialiased overflow-hidden">
-      {/* Primary Header */}
       <nav className="px-6 py-4 bg-white border-b flex items-center justify-between z-50 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          {step > 0 && (
-            <button onClick={() => { setStep(step-1); setHistory(prev => prev.slice(0, -2)); }} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-              <ChevronLeft size={20} />
-            </button>
-          )}
-          <div className="relative h-6 w-32">
-            <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
-          </div>
+        <div className="relative h-6 w-32">
+          <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
         </div>
         <div className="h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
           <motion.div className="h-full bg-[#0033FF]" animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} />
         </div>
       </nav>
 
-      {/* ANCHORING: Sticky Context Header for Multiple Choice */}
-      <AnimatePresence>
-        {isHeaderPinned && step < QUESTIONS.length && (currentQ.type === 'multiple' || currentQ.type === 'choice') && (
-          <motion.div 
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -50, opacity: 0 }}
-            className="absolute top-[65px] left-0 right-0 bg-white/90 backdrop-blur-md px-6 py-3 border-b z-40 shadow-sm"
-          >
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Current Question</p>
-            <p className="text-sm font-bold text-slate-800 line-clamp-1">{currentQ.text}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Main Chat Scroll Area */}
       <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
-        <div className="max-w-xl mx-auto pt-8 pb-10">
+        <div className="max-w-xl mx-auto pt-8 pb-[80vh]"> {/* Massive bottom padding allows any bubble to reach the top */}
           <AnimatePresence mode="popLayout">
             {history.map((msg, i) => {
-              const isLastBot = i === history.length - 1 && msg.role === 'bot';
+              const isLatestBot = i === history.length - 1 && msg.role === 'bot';
               return (
                 <motion.div 
                   key={i} 
-                  ref={isLastBot ? lastMessageRef : null}
+                  ref={isLatestBot ? activeQuestionRef : null}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-6 scroll-mt-[120px]`}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8`}
                 >
-                  <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium ${
-                    msg.role === 'user' ? 'bg-[#0033FF] text-white shadow-lg' : 'bg-white border border-slate-100 text-slate-700 shadow-sm'
+                  <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium shadow-sm border ${
+                    msg.role === 'user' ? 'bg-[#0033FF] text-white border-transparent' : 'bg-white text-slate-700 border-slate-100'
                   }`}>
                     {msg.role === 'bot' && msg.category === 'legal' && <div className="text-[10px] font-black uppercase text-[#0033FF] mb-1 tracking-widest">Security Notice</div>}
                     {msg.content}
@@ -166,11 +146,12 @@ export default function FinalEnhancedChat() {
         </div>
       </main>
 
-      {/* FOOTER: Anchored and High-Contrast */}
+      {/* FOOTER: Anchored Context */}
       <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-xl mx-auto">
           {step < QUESTIONS.length ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              
               {currentQ.type === 'multiple' ? (
                 <div className="space-y-3">
                   <div className="relative">
@@ -197,7 +178,7 @@ export default function FinalEnhancedChat() {
                       <ChevronDown size={14} />
                     </div>
                   </div>
-                  <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl active:brightness-90">Confirm Selection</button>
+                  <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl">Confirm Selection</button>
                 </div>
               ) : currentQ.type === 'choice' || currentQ.type === 'dropdown' ? (
                 <div className="grid grid-cols-1 gap-2">
