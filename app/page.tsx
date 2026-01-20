@@ -55,26 +55,26 @@ export default function PinnedContextChat() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentQ = QUESTIONS[step];
 
-  // PM/SWE SOLUTION: Force the active question to the top of the scrollable area
+  // PM/SWE SOLUTION: Anchoring with high vertical safe-zone
   useEffect(() => {
     const scrollToActive = () => {
       if (activeQuestionRef.current && scrollContainerRef.current) {
         const container = scrollContainerRef.current;
         const target = activeQuestionRef.current;
         
-        // Calculate distance from top of container to the target
+        // Increased offset to 80px to push the question down further from the logo
         const targetTop = target.offsetTop;
         
         container.scrollTo({
-          top: targetTop - 20, // 20px buffer from the header
+          top: targetTop - 80, 
           behavior: 'smooth'
         });
       }
     };
 
-    const timer = setTimeout(scrollToActive, 100);
+    const timer = setTimeout(scrollToActive, 200);
     return () => clearTimeout(timer);
-  }, [step, isTyping, history.length]);
+  }, [step, isTyping, history.length, selectedMulti]);
 
   const submitAnswer = (value: any) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return;
@@ -111,17 +111,18 @@ export default function PinnedContextChat() {
   return (
     <div className="flex flex-col h-[100dvh] bg-[#FDFDFF] font-sans antialiased overflow-hidden">
       <nav className="px-6 py-4 bg-white border-b flex items-center justify-between z-50 flex-shrink-0">
-        <div className="relative h-6 w-32">
-          <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
+        <div className="flex items-center gap-4">
+          <div className="relative h-6 w-32">
+            <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
+          </div>
         </div>
         <div className="h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
           <motion.div className="h-full bg-[#0033FF]" animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} />
         </div>
       </nav>
 
-      {/* Main Chat Scroll Area */}
       <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
-        <div className="max-w-xl mx-auto pt-8 pb-[80vh]"> {/* Massive bottom padding allows any bubble to reach the top */}
+        <div className="max-w-xl mx-auto pt-8 pb-[80vh]">
           <AnimatePresence mode="popLayout">
             {history.map((msg, i) => {
               const isLatestBot = i === history.length - 1 && msg.role === 'bot';
@@ -130,7 +131,7 @@ export default function PinnedContextChat() {
                   key={i} 
                   ref={isLatestBot ? activeQuestionRef : null}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8`}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8 scroll-mt-24`}
                 >
                   <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium shadow-sm border ${
                     msg.role === 'user' ? 'bg-[#0033FF] text-white border-transparent' : 'bg-white text-slate-700 border-slate-100'
@@ -146,7 +147,6 @@ export default function PinnedContextChat() {
         </div>
       </main>
 
-      {/* FOOTER: Anchored Context */}
       <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-xl mx-auto">
           {step < QUESTIONS.length ? (
@@ -174,9 +174,6 @@ export default function PinnedContextChat() {
                         </button>
                       ))}
                     </div>
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none animate-bounce text-[#0033FF]">
-                      <ChevronDown size={14} />
-                    </div>
                   </div>
                   <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl">Confirm Selection</button>
                 </div>
@@ -190,18 +187,6 @@ export default function PinnedContextChat() {
                       {opt} <ArrowRight size={16} className="text-[#0033FF] group-active:text-white opacity-60" />
                     </button>
                   ))}
-                </div>
-              ) : currentQ.type === 'height' ? (
-                <div className="flex gap-4 items-center">
-                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Feet</label>
-                    <input type="number" value={heightFt} onChange={(e) => setHeightFt(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="5" />
-                  </div>
-                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Inches</label>
-                    <input type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="10" />
-                  </div>
-                  <button onClick={() => submitAnswer(`${heightFt}'${heightIn}"`)} className="h-14 w-14 bg-[#0033FF] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><ArrowRight size={24}/></button>
                 </div>
               ) : (
                 <div className="relative">
