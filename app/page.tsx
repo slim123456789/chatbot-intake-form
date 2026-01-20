@@ -55,14 +55,12 @@ export default function PinnedContextChat() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentQ = QUESTIONS[step];
 
-  // PM/SWE SOLUTION: Anchoring with high vertical safe-zone
+  // Logic for the 80px Safe-Zone Anchoring
   useEffect(() => {
     const scrollToActive = () => {
       if (activeQuestionRef.current && scrollContainerRef.current) {
         const container = scrollContainerRef.current;
         const target = activeQuestionRef.current;
-        
-        // Increased offset to 80px to push the question down further from the logo
         const targetTop = target.offsetTop;
         
         container.scrollTo({
@@ -152,7 +150,20 @@ export default function PinnedContextChat() {
           {step < QUESTIONS.length ? (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              {currentQ.type === 'multiple' ? (
+              {/* HEIGHT INPUT - REVERTED TO SPECIAL FT/IN FORMAT */}
+              {currentQ.type === 'height' ? (
+                <div className="flex gap-4 items-center">
+                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Feet</label>
+                    <input type="number" value={heightFt} onChange={(e) => setHeightFt(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="5" />
+                  </div>
+                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Inches</label>
+                    <input type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="10" />
+                  </div>
+                  <button onClick={() => submitAnswer(`${heightFt}'${heightIn}"`)} className="h-14 w-14 bg-[#0033FF] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><ArrowRight size={24}/></button>
+                </div>
+              ) : currentQ.type === 'multiple' ? (
                 <div className="space-y-3">
                   <div className="relative">
                     <div className="max-h-[35vh] overflow-y-auto space-y-2 pr-1 scrollbar-hide mask-gradient">
