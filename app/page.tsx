@@ -50,7 +50,6 @@ const CHAT_FLOW = [
 export default function UnifiedClinicalChat() {
   const [view, setView] = useState<'chat' | 'loading' | 'results' | 'qualified'>('chat');
   const [step, setStep] = useState(0);
-  // Added Diagnostic Started divider to initial history
   const [history, setHistory] = useState<any[]>([
     { role: 'divider', content: 'Diagnostic Protocol Started', type: 'start' },
     { role: 'bot', content: CHAT_FLOW[0].text, id: CHAT_FLOW[0].id }
@@ -69,7 +68,6 @@ export default function UnifiedClinicalChat() {
   const activeMessageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // --- Auto-Play Logic ---
   useEffect(() => {
     if (view === 'results' && videoRef.current) {
         videoRef.current.muted = false;
@@ -77,7 +75,7 @@ export default function UnifiedClinicalChat() {
     }
   }, [view]);
 
-  // --- Dynamic Anchoring ---
+  // --- Optimized Anchoring for Objective Question ---
   useEffect(() => {
     const scrollToActive = () => {
       if (scrollRef.current) {
@@ -90,7 +88,11 @@ export default function UnifiedClinicalChat() {
           const target = activeMessageRef.current;
           const containerRect = container.getBoundingClientRect();
           const targetRect = target.getBoundingClientRect();
-          const scrollTarget = container.scrollTop + (targetRect.top - containerRect.top) - 60;
+          
+          // Adjusted anchor: Increased the offset to 120px to ensure the question bubble 
+          // sits higher when the tall choice footer is open.
+          const scrollTarget = container.scrollTop + (targetRect.top - containerRect.top) - 120;
+          
           container.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         }
       }
@@ -210,12 +212,7 @@ export default function UnifiedClinicalChat() {
                 return (
                   <motion.div key={`divider-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 flex flex-col items-center gap-4">
                     <div className="flex items-center gap-4 w-full">
-                      <div className="h-px bg-slate-200 flex-1" />
-                      <div className="flex items-center gap-2 px-4 py-2 bg-[#0033FF]/5 rounded-full border border-[#0033FF]/10">
-                        <ShieldCheck className="text-[#0033FF]" size={14} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[#0033FF]">{msg.content}</span>
-                      </div>
-                      <div className="h-px bg-slate-200 flex-1" />
+                      <div className="h-px bg-slate-200 flex-1" /><div className="flex items-center gap-2 px-4 py-2 bg-[#0033FF]/5 rounded-full border border-[#0033FF]/10"><ShieldCheck className="text-[#0033FF]" size={14} /><span className="text-[10px] font-black uppercase tracking-widest text-[#0033FF]">{msg.content}</span></div><div className="h-px bg-slate-200 flex-1" />
                     </div>
                   </motion.div>
                 );
@@ -250,43 +247,16 @@ export default function UnifiedClinicalChat() {
             <motion.div variants={messageVariants} initial="initial" animate="animate" className="space-y-8 pb-10">
               <div className="bg-white border border-slate-200 p-8 md:p-12 rounded-[3rem] text-center space-y-10 shadow-sm">
                 <div className="w-20 h-20 bg-[#0033FF] rounded-full flex items-center justify-center mx-auto shadow-xl"><ClipboardCheck className="text-white" size={36} /></div>
-                <div className="space-y-2">
-                    <h2 className="text-4xl font-black uppercase tracking-tighter text-[#0F172A]">Pre-Qualified</h2>
-                    <p className="text-slate-500 font-medium">Your physiological profile meets protocol standards.</p>
-                </div>
-                
+                <div className="space-y-2"><h2 className="text-4xl font-black uppercase tracking-tighter text-[#0F172A]">Pre-Qualified</h2><p className="text-slate-500 font-medium">Your physiological profile meets protocol standards.</p></div>
                 <div className="space-y-3 text-left">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Clinical Sequence</p>
-                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
-                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">01</div>
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-tight">Clinical Blood Analysis</p>
-                        <p className="text-xs text-slate-500 mt-1">Visit any LabCorp facility nationwide for biological verification.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60">
-                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">02</div>
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-tight">Physician Consultation</p>
-                        <p className="text-xs text-slate-500 mt-1">Review results with our medical team via secure telehealth.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60">
-                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">03</div>
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-tight">Protocol Deployment</p>
-                        <p className="text-xs text-slate-500 mt-1">Receive customized pharmaceutical support at your door.</p>
-                    </div>
-                  </div>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100"><div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">01</div><div><p className="text-sm font-black uppercase">Clinical Blood Analysis</p><p className="text-xs text-slate-500">Visit any LabCorp facility nationwide for biological verification.</p></div></div>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60"><div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">02</div><div><p className="text-sm font-black uppercase">Physician Consultation</p><p className="text-xs text-slate-500">Review results with our medical team via telehealth.</p></div></div>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60"><div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">03</div><div><p className="text-sm font-black uppercase">Protocol Deployment</p><p className="text-xs text-slate-500">Receive customized pharmaceutical support at your door.</p></div></div>
                 </div>
-
                 <div className="flex flex-col gap-3">
-                    <button className="w-full py-6 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
-                        Schedule Blood Analysis <ArrowRight size={20} />
-                    </button>
-                    <button onClick={() => setView('chat')} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#0033FF] py-2 transition-colors">
-                        Review Intake Responses
-                    </button>
+                    <button className="w-full py-6 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 active:scale-[0.98]">Schedule Blood Analysis <ArrowRight size={20} /></button>
+                    <button onClick={() => setView('chat')} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#0033FF] py-2 transition-colors">Review Intake Responses</button>
                 </div>
               </div>
             </motion.div>
@@ -294,7 +264,6 @@ export default function UnifiedClinicalChat() {
         </div>
       </main>
 
-      {/* Dramatic Synthesis Overlay */}
       <AnimatePresence>
       {view === 'loading' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-white z-[60] flex flex-col items-center justify-center px-8">
