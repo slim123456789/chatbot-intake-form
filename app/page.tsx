@@ -2,227 +2,339 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Check, ShieldCheck, ChevronLeft, ArrowRight, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { 
+  ArrowRight, Check, ChevronRight, Activity, Zap, 
+  Shield, Play, Pause, Calendar, Stethoscope, Beaker, Lock,
+  ClipboardCheck, AlertCircle, Volume2, VolumeX, Send, ShieldCheck, Eye, Search, ChevronDown, 
+  LayoutDashboard, ListChecks
+} from 'lucide-react';
 
-const PRIMARY_COLOR = '#0033FF';
-
-// --- Formatters ---
-const formatPhoneNumber = (v: string) => {
-  const n = v.replace(/\D/g, '');
-  if (n.length < 4) return n;
-  if (n.length < 7) return `(${n.slice(0, 3)}) ${n.slice(3)}`;
-  return `(${n.slice(0, 3)}) ${n.slice(3, 6)}-${n.slice(6, 10)}`;
+// --- Type-Safe Apple Motion Config ---
+const messageVariants: Variants = {
+  initial: { opacity: 0, y: 20, scale: 0.95 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } }
 };
 
-const formatDOB = (v: string) => {
-  const n = v.replace(/\D/g, '').slice(0, 8);
-  if (n.length >= 5) return `${n.slice(0, 2)}/${n.slice(2, 4)}/${n.slice(4, 8)}`;
-  if (n.length >= 3) return `${n.slice(0, 2)}/${n.slice(2, 4)}`;
-  return n;
-};
-
-const QUESTIONS = [
-  { id: 'accuracy', key: 'accuracy_agreed', text: "It is important to note that clinicians can only make decisions based on the information provided to them. To that end, it is critical that the details provided and questions answered are complete and accurate. Do you agree to answer all questions completely and accurately?", type: 'choice', options: ['Yes', 'No'], category: 'legal' },
-  { id: 'age', key: 'is_18', text: "I am at least 18 years old.", type: 'choice', options: ['I Agree', 'I do not agree'], category: 'legal' },
-  { id: 'legal_docs', key: 'consents', text: "Please acknowledge that you have read, understood, and agreed to the Terms of Use, Privacy Policy, OpenLoop Telehealth consent, and the Release of Information form.", type: 'choice', options: ['I acknowledge and agree'], category: 'legal' },
-  { id: 'fname', key: 'first_name', text: "What is your legal first name?", type: 'text' },
-  { id: 'lname', key: 'last_name', text: "What is your legal last name?", type: 'text' },
-  { id: 'pname', key: 'pref_name', text: "What is your preferred first name?", type: 'text' },
-  { id: 'email', key: 'email', text: "What is your email address?", type: 'email' },
-  { id: 'phone', key: 'phone', text: "What is your phone number?", type: 'tel' },
-  { id: 'sms', key: 'sms_opt_in', text: "Do you agree to receive text messages regarding your services? (Msg/data rates apply).", type: 'choice', options: ['I Agree', 'Skip'], category: 'legal' },
-  { id: 'dob', key: 'dob', text: "What is your date of birth?", type: 'text', placeholder: 'MM/DD/YYYY' },
-  { id: 'sex', key: 'sex_at_birth', text: "Sex Assigned at Birth", type: 'dropdown', options: ['Male', 'Female'] },
-  { id: 'height', key: 'height', text: "What is your height?", type: 'height' },
-  { id: 'weight', key: 'weight', text: "What is your current weight (lb)?", type: 'number' },
-  { id: 'alcohol', key: 'alcohol_days', text: "How many days a week do you drink?", type: 'number' },
-  { id: 'allergies', key: 'allergies', text: "Do you have any of the following allergies or sensitivities?", type: 'multiple', options: ['None of the above', 'NAD', 'Sermorelin', 'Vitamin B12', 'Methionine', 'Inositol', 'Choline', 'Methylene blue', 'Thiazine dye', 'Glutathione', 'L-carnitine'] },
-  { id: 'situations', key: 'medical_conditions', text: "Do any of the following situations apply to you?", type: 'multiple', options: ['None of the above', 'G6PD deficiency', 'Seizure disorder', 'Asthma or COPD', 'Serotonergic meds (last 6 months)', 'Pregnant or breastfeeding', 'History of cancer', 'No health check-up in 3 years'] },
+const US_STATES = [
+  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", 
+  "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", 
+  "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", 
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", 
+  "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
 ];
 
-export default function PinnedContextChat() {
+const CHAT_FLOW = [
+  { id: 'gender', key: 'gender', text: "To begin your diagnostic, please select your biological sex:", type: 'choice', options: ['Male', 'Female'] },
+  { id: 'state', key: 'state', text: "In which state do you currently reside? (Required for clinical licensing):", type: 'state_select' },
+  { 
+    id: 'objective', 
+    key: 'goal', 
+    text: "Identify your primary physiological optimization objective:", 
+    type: 'choice', 
+    options: ['Live Longer (Longevity)', 'Boost Daily Energy', 'Improve Sleep Quality', 'Optimize Body Composition', 'Balance Hormones', 'Hypertrophy & Strength'] 
+  },
+  { id: 'brain_fog', key: 'brain_fog', text: "How often do you experience a midday brain fog?", type: 'choice', options: ['Daily / Chronic', 'Occasionally', 'Rarely / Never'] },
+  { id: 'vitality', key: 'vitality', text: "Do you wake up feeling fully restored?", type: 'choice', options: ['Rarely Restored', 'Somewhat', 'Fully Restored'] },
+  { id: 'stress', key: 'stress', text: "Stress resilience change (last 24 months):", type: 'choice', options: ['Noticeably Decreased', 'Remained Stable'] },
+  { id: 'roi', key: 'roi', text: "How are your workout results vs. 5 years ago?", type: 'choice', options: ['Hitting a plateau', 'Results are slower', 'Still optimizing'] },
+  { id: 'fertility', key: 'fertility', text: "Clinical Preference: Do you desire to preserve fertility?", type: 'choice', options: ['Yes, Preservation Required', 'Not a Priority'] },
+  { id: 'fname', key: 'firstName', text: "To initialize your clinical file and medical clearance, what is your first name?", type: 'text' },
+  { id: 'lname', key: 'lastName', text: "And your legal last name?", type: 'text' },
+  { id: 'email', key: 'email', text: "What is the best email address for your secure medical portal?", type: 'email' },
+  { id: 'phone', key: 'phone', text: "Lastly, your phone number for physician coordination?", type: 'tel' },
+  { id: 'history', key: 'medicalHistory', text: "Do you have a history of heart conditions, current hormone therapy, or active cancer treatment?", type: 'choice', options: ['Yes, medical history exists', 'None of the above apply'] },
+];
+
+export default function UnifiedClinicalChat() {
+  const [view, setView] = useState<'chat' | 'loading' | 'results' | 'qualified'>('chat');
   const [step, setStep] = useState(0);
-  const [history, setHistory] = useState<any[]>([{ role: 'bot', content: QUESTIONS[0].text, category: QUESTIONS[0].category }]);
+  // Added Diagnostic Started divider to initial history
+  const [history, setHistory] = useState<any[]>([
+    { role: 'divider', content: 'Diagnostic Protocol Started', type: 'start' },
+    { role: 'bot', content: CHAT_FLOW[0].text, id: CHAT_FLOW[0].id }
+  ]);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [inputValue, setInputValue] = useState('');
-  const [heightFt, setHeightFt] = useState('');
-  const [heightIn, setHeightIn] = useState('');
-  const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
+  const [stateSearch, setStateSearch] = useState('');
+  const [isStateOpen, setIsStateOpen] = useState(false);
+  const [loadingText, setLoadingText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  
-  const activeQuestionRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const currentQ = QUESTIONS[step];
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Logic for the 80px Safe-Zone Anchoring
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const activeMessageRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  // --- Auto-Play Logic ---
+  useEffect(() => {
+    if (view === 'results' && videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.play().catch(err => console.log("Autoplay blocked", err));
+    }
+  }, [view]);
+
+  // --- Dynamic Anchoring ---
   useEffect(() => {
     const scrollToActive = () => {
-      if (activeQuestionRef.current && scrollContainerRef.current) {
-        const container = scrollContainerRef.current;
-        const target = activeQuestionRef.current;
-        const targetTop = target.offsetTop;
-        
-        container.scrollTo({
-          top: targetTop - 80, 
-          behavior: 'smooth'
-        });
+      if (scrollRef.current) {
+        const container = scrollRef.current;
+        if ((view === 'qualified' || view === 'results') && heroRef.current) {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        if (activeMessageRef.current && view === 'chat') {
+          const target = activeMessageRef.current;
+          const containerRect = container.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          const scrollTarget = container.scrollTop + (targetRect.top - containerRect.top) - 60;
+          container.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        }
       }
     };
-
-    const timer = setTimeout(scrollToActive, 200);
+    const timer = setTimeout(scrollToActive, 250);
     return () => clearTimeout(timer);
-  }, [step, isTyping, history.length, selectedMulti]);
+  }, [history, isTyping, view, step]);
 
-  const submitAnswer = (value: any) => {
-    if (!value || (Array.isArray(value) && value.length === 0)) return;
-    if ((currentQ.id === 'accuracy' || currentQ.id === 'age') && (value === 'No' || value === 'I do not agree')) {
-        alert("Agreement is required to proceed.");
-        return;
-    }
-
-    const nextStep = step + 1;
-    const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
-    
-    setFormData(prev => ({ ...prev, [currentQ.key]: value }));
-    setHistory(prev => [...prev, { role: 'user', content: displayValue }]);
+  const handleSubmission = (val: string) => {
+    if (!val || isSubmitted) return;
+    const currentQ = CHAT_FLOW[step];
+    setFormData(prev => ({ ...prev, [currentQ.key]: val }));
+    setHistory(prev => [...prev, { role: 'user', content: val }]);
     setInputValue('');
-    setHeightFt('');
-    setHeightIn('');
-    setSelectedMulti([]);
+    setIsStateOpen(false);
 
-    if (nextStep < QUESTIONS.length) {
+    if (currentQ.id === 'fertility') {
+      setView('loading');
+      runLoadingSequence();
+      return;
+    }
+    if (currentQ.id === 'history') {
+      setIsSubmitted(true);
+      setView('qualified');
+      return;
+    }
+    progressChat(step + 1);
+  };
+
+  const progressChat = (nextIdx: number) => {
+    if (nextIdx < CHAT_FLOW.length) {
       setIsTyping(true);
       setTimeout(() => {
-        setStep(nextStep);
-        setHistory(prev => [...prev, { role: 'bot', content: QUESTIONS[nextStep].text, category: QUESTIONS[nextStep].category }]);
+        setStep(nextIdx);
+        setHistory(prev => [...prev, { role: 'bot', content: CHAT_FLOW[nextIdx].text, id: CHAT_FLOW[nextIdx].id }]);
         setIsTyping(false);
-      }, 700);
-    } else {
-      setStep(nextStep);
-      setTimeout(() => {
-        setHistory(prev => [...prev, { role: 'bot', content: "Intake Complete. Our team will review your file." }]);
-      }, 500);
+      }, 800);
     }
   };
 
+  const startIntakeFlow = () => {
+    if (step >= 8) { setView('chat'); return; }
+    setView('chat');
+    const nextIdx = 8;
+    setIsTyping(true);
+    setTimeout(() => {
+      setStep(nextIdx);
+      setHistory(prev => [...prev, 
+        { role: 'divider', content: 'Combined Medical Intake Started', type: 'intake' },
+        { role: 'bot', content: CHAT_FLOW[nextIdx].text, id: CHAT_FLOW[nextIdx].id }
+      ]);
+      setIsTyping(false);
+    }, 600);
+  };
+
+  const runLoadingSequence = () => {
+    const sequence = [
+      "Initializing Neural Synthesis...",
+      "Synchronizing Biological Markers...",
+      "Optimizing Protocol Synergy...",
+      "Calibrating Delivery Vector...",
+      "Finalizing Protocol Briefing..."
+    ];
+    let i = 0;
+    const interval = setInterval(() => {
+      setLoadingText(sequence[i]);
+      i++;
+      if (i >= sequence.length) {
+        clearInterval(interval);
+        setTimeout(() => setView('results'), 500);
+      }
+    }, 1000);
+  };
+
+  const getProtocol = () => {
+    const hormonal = formData.gender === 'Female' ? 'Estradiol Support' : (formData.fertility?.includes('Yes') ? 'Enclomiphene' : 'Injectable TRT');
+    return { hormonal, longevity: formData.goal?.includes('Energy') ? 'NAD+ Injection' : 'Sermorelin Injection' };
+  };
+
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#FDFDFF] font-sans antialiased overflow-hidden">
-      <nav className="px-6 py-4 bg-white border-b flex items-center justify-between z-50 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="relative h-6 w-32">
-            <Image src="/EnhancedLogo-Combination-black.png" alt="Logo" fill className="object-contain object-left" priority />
-          </div>
+    <div className="flex flex-col h-[100dvh] bg-[#F8FAFC] text-[#0F172A] font-sans antialiased overflow-hidden">
+      <nav className="px-4 md:px-6 py-4 bg-white/80 backdrop-blur-md border-b flex items-center justify-between z-50">
+        <div className="relative h-6 w-24 md:w-32">
+          <Image src="/EnhancedLogo-Combination-black.png" alt="Enhanced" fill className="object-contain object-left" priority />
         </div>
-        <div className="h-1 w-20 bg-slate-100 rounded-full overflow-hidden">
-          <motion.div className="h-full bg-[#0033FF]" animate={{ width: `${(Math.min(step, QUESTIONS.length) / QUESTIONS.length) * 100}%` }} />
+        
+        <div className="flex items-center gap-2 md:gap-4">
+            <AnimatePresence>
+                {(step >= 8 || view === 'results' || view === 'qualified') && (
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex bg-slate-100 p-1 rounded-full border border-slate-200 shadow-sm">
+                        <button onClick={() => setView('chat')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-[9px] font-black uppercase tracking-tight ${view === 'chat' ? 'bg-white shadow-sm text-[#0033FF]' : 'text-slate-500'}`}><Activity size={10} /> Chat</button>
+                        <button onClick={() => setView('results')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-[9px] font-black uppercase tracking-tight ${view === 'results' ? 'bg-white shadow-sm text-[#0033FF]' : 'text-slate-500'}`}><LayoutDashboard size={10} /> Protocol</button>
+                        {(view === 'qualified' || isSubmitted) && (
+                            <button onClick={() => setView('qualified')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-[9px] font-black uppercase tracking-tight ${view === 'qualified' ? 'bg-white shadow-sm text-[#0033FF]' : 'text-slate-500'}`}><ListChecks size={10} /> Steps</button>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
       </nav>
 
-      <main ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
-        <div className="max-w-xl mx-auto pt-8 pb-[80vh]">
+      <div className="w-full h-1 bg-slate-50 relative z-50">
+        <motion.div className="h-full bg-[#0033FF]" animate={{ width: isSubmitted ? '100%' : `${((step + 1) / CHAT_FLOW.length) * 100}%` }} />
+      </div>
+
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-6 pt-10 relative scroll-smooth">
+        <div className="max-w-xl mx-auto space-y-12 pb-[40vh]">
+          
+          <div ref={heroRef} className="py-8 border-b border-slate-100 mb-8">
+            <h1 className="text-6xl font-black mb-4 tracking-tighter leading-[0.85] uppercase text-[#0F172A]">Live <br/><span className="text-[#0033FF]">Enhanced</span></h1>
+            <p className="text-xl text-[#64748B] font-medium max-w-sm leading-relaxed text-balance">Precision protocols for high-performance biology.</p>
+          </div>
+
           <AnimatePresence mode="popLayout">
-            {history.map((msg, i) => {
-              const isLatestBot = i === history.length - 1 && msg.role === 'bot';
+            {view === 'chat' && history.map((msg, i) => {
+              if (msg.role === 'divider') {
+                return (
+                  <motion.div key={`divider-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 flex flex-col items-center gap-4">
+                    <div className="flex items-center gap-4 w-full">
+                      <div className="h-px bg-slate-200 flex-1" />
+                      <div className="flex items-center gap-2 px-4 py-2 bg-[#0033FF]/5 rounded-full border border-[#0033FF]/10">
+                        <ShieldCheck className="text-[#0033FF]" size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#0033FF]">{msg.content}</span>
+                      </div>
+                      <div className="h-px bg-slate-200 flex-1" />
+                    </div>
+                  </motion.div>
+                );
+              }
               return (
-                <motion.div 
-                  key={i} 
-                  ref={isLatestBot ? activeQuestionRef : null}
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} 
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-8 scroll-mt-24`}
-                >
-                  <div className={`p-4 md:p-5 rounded-2xl max-w-[85%] text-sm md:text-base font-medium shadow-sm border ${
-                    msg.role === 'user' ? 'bg-[#0033FF] text-white border-transparent' : 'bg-white text-slate-700 border-slate-100'
-                  }`}>
-                    {msg.role === 'bot' && msg.category === 'legal' && <div className="text-[10px] font-black uppercase text-[#0033FF] mb-1 tracking-widest">Security Notice</div>}
-                    {msg.content}
-                  </div>
+                <motion.div key={`msg-${i}`} ref={i === history.length - 1 ? activeMessageRef : null} variants={messageVariants} initial="initial" animate="animate" className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`p-5 rounded-3xl max-w-[85%] text-base font-semibold shadow-sm ${msg.role === 'user' ? 'bg-[#0033FF] text-white' : 'bg-white border border-slate-100 text-[#0F172A]'}`}>{msg.content}</div>
                 </motion.div>
               );
             })}
           </AnimatePresence>
-          {isTyping && <div className="w-12 h-8 bg-slate-100 rounded-2xl animate-pulse ml-2" />}
+
+          {isTyping && <div className="flex gap-1.5 p-4 bg-white border border-slate-100 rounded-2xl w-16"><span className="w-1.5 h-1.5 bg-[#0033FF] rounded-full animate-bounce" /></div>}
+
+          {view === 'results' && (
+            <motion.div variants={messageVariants} initial="initial" animate="animate" className="space-y-8">
+              <div className="space-y-2"><h1 className="text-5xl font-black uppercase tracking-tighter text-[#0F172A]">Protocol Synthesis<span className="text-[#0033FF]"> Complete</span></h1></div>
+              <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-900/5">
+                <div className="aspect-video bg-black relative"><video ref={videoRef} src="/clinical-video.mp4" loop playsInline className="w-full h-full object-cover" /><div className="absolute bottom-6 left-8 right-8 flex items-center justify-between"><button onClick={() => setIsMuted(!isMuted)} className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white">{isMuted ? <VolumeX size={16}/> : <Volume2 size={16}/>}</button></div></div>
+                <div className="p-8 space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-100"><Shield className="text-[#0033FF]" size={22} /><div><p className="text-[10px] font-black uppercase text-[#0033FF]">Part A</p><p className="text-base font-black text-[#0F172A]">{getProtocol().hormonal}</p></div></div>
+                    <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-100"><Zap className="text-[#0033FF]" size={22} /><div><p className="text-[10px] font-black uppercase text-[#0033FF]">Part B</p><p className="text-base font-black text-[#0F172A]">{getProtocol().longevity}</p></div></div>
+                  </div>
+                  <button onClick={startIntakeFlow} className="w-full py-6 bg-[#0033FF] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl">{isSubmitted ? "Return to Clinical Chat" : "Start Combined Intake"}</button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'qualified' && (
+            <motion.div variants={messageVariants} initial="initial" animate="animate" className="space-y-8 pb-10">
+              <div className="bg-white border border-slate-200 p-8 md:p-12 rounded-[3rem] text-center space-y-10 shadow-sm">
+                <div className="w-20 h-20 bg-[#0033FF] rounded-full flex items-center justify-center mx-auto shadow-xl"><ClipboardCheck className="text-white" size={36} /></div>
+                <div className="space-y-2">
+                    <h2 className="text-4xl font-black uppercase tracking-tighter text-[#0F172A]">Pre-Qualified</h2>
+                    <p className="text-slate-500 font-medium">Your physiological profile meets protocol standards.</p>
+                </div>
+                
+                <div className="space-y-3 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Clinical Sequence</p>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">01</div>
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-tight">Clinical Blood Analysis</p>
+                        <p className="text-xs text-slate-500 mt-1">Visit any LabCorp facility nationwide for biological verification.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60">
+                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">02</div>
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-tight">Physician Consultation</p>
+                        <p className="text-xs text-slate-500 mt-1">Review results with our medical team via secure telehealth.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 p-6 bg-slate-50 rounded-[2rem] border border-slate-100 opacity-60">
+                    <div className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center shrink-0 font-black text-[10px]">03</div>
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-tight">Protocol Deployment</p>
+                        <p className="text-xs text-slate-500 mt-1">Receive customized pharmaceutical support at your door.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <button className="w-full py-6 bg-[#0F172A] text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+                        Schedule Blood Analysis <ArrowRight size={20} />
+                    </button>
+                    <button onClick={() => setView('chat')} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#0033FF] py-2 transition-colors">
+                        Review Intake Responses
+                    </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
 
-      <footer className="bg-white border-t px-6 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:px-8 md:pb-10 z-40 flex-shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+      {/* Dramatic Synthesis Overlay */}
+      <AnimatePresence>
+      {view === 'loading' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-white z-[60] flex flex-col items-center justify-center px-8">
+            <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
+                <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute inset-0 bg-[#0033FF] rounded-full" />
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="absolute inset-0 border-t-2 border-[#0033FF] rounded-full" />
+                <Beaker className="text-[#0033FF] relative z-10" size={48} />
+            </div>
+            <div className="text-center space-y-3">
+                <AnimatePresence mode="wait">
+                    <motion.h2 key={loadingText} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="text-xl font-black uppercase tracking-tighter text-[#0F172A]">{loadingText}</motion.h2>
+                </AnimatePresence>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Biometric Synthesis Active</p>
+            </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      <footer className="fixed bottom-0 left-0 right-0 p-8 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-40">
         <div className="max-w-xl mx-auto">
-          {step < QUESTIONS.length ? (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              
-              {/* HEIGHT INPUT - REVERTED TO SPECIAL FT/IN FORMAT */}
-              {currentQ.type === 'height' ? (
-                <div className="flex gap-4 items-center">
-                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Feet</label>
-                    <input type="number" value={heightFt} onChange={(e) => setHeightFt(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="5" />
-                  </div>
-                  <div className="flex-1 bg-slate-50 rounded-2xl p-3 border-2 border-slate-200 focus-within:ring-2 focus-within:ring-[#0033FF]">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Inches</label>
-                    <input type="number" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} className="w-full bg-transparent px-1 py-1 outline-none text-xl font-medium text-slate-900" placeholder="10" />
-                  </div>
-                  <button onClick={() => submitAnswer(`${heightFt}'${heightIn}"`)} className="h-14 w-14 bg-[#0033FF] text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><ArrowRight size={24}/></button>
-                </div>
-              ) : currentQ.type === 'multiple' ? (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <div className="max-h-[35vh] overflow-y-auto space-y-2 pr-1 scrollbar-hide mask-gradient">
-                      {currentQ.options?.map(opt => (
-                        <button 
-                          key={opt} 
-                          onClick={() => {
-                            if (opt === 'None of the above') setSelectedMulti(['None of the above']);
-                            else setSelectedMulti(prev => prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev.filter(x => x !== 'None of the above'), opt]);
-                          }} 
-                          className={`w-full p-4 rounded-xl border-2 text-left text-sm font-black transition-all flex justify-between items-center active:bg-[#0033FF] active:text-white active:scale-[0.98] ${
-                            selectedMulti.includes(opt) ? 'border-[#0033FF] bg-blue-50 text-[#0033FF]' : 'border-slate-200 bg-slate-50 text-slate-800'
-                          }`}
-                        >
-                          {opt}
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedMulti.includes(opt) ? 'bg-white border-white text-[#0033FF]' : 'border-slate-300'}`}>
-                            {selectedMulti.includes(opt) && <Check size={12} strokeWidth={4}/>}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={() => submitAnswer(selectedMulti)} className="w-full p-4 bg-[#0033FF] text-white rounded-xl font-black uppercase text-sm tracking-widest shadow-xl">Confirm Selection</button>
-                </div>
-              ) : currentQ.type === 'choice' || currentQ.type === 'dropdown' ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {currentQ.options?.map(opt => (
-                    <button 
-                      key={opt} onClick={() => submitAnswer(opt)} 
-                      className="w-full p-5 rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-black flex justify-between items-center group transition-all uppercase text-xs tracking-widest active:bg-[#0033FF] active:text-white active:border-[#0033FF]"
-                    >
-                      {opt} <ArrowRight size={16} className="text-[#0033FF] group-active:text-white opacity-60" />
-                    </button>
-                  ))}
-                </div>
-              ) : (
+          {view === 'chat' && step < CHAT_FLOW.length && !isSubmitted ? (
+            <div className="space-y-4">
+              {CHAT_FLOW[step].type === 'state_select' ? (
                 <div className="relative">
-                  <input
-                    autoFocus value={inputValue}
-                    onChange={(e) => setInputValue(currentQ.id === 'phone' ? formatPhoneNumber(e.target.value) : currentQ.id === 'dob' ? formatDOB(e.target.value) : e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && submitAnswer(inputValue)}
-                    className="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#0033FF] text-slate-900 font-medium text-lg placeholder:text-slate-400 appearance-none"
-                    placeholder={currentQ.placeholder || "Type here..."}
-                  />
-                  <button onClick={() => submitAnswer(inputValue)} className="absolute right-3 top-3 p-2.5 bg-[#0033FF] text-white rounded-xl shadow-md active:scale-90 transition-all"><Send size={20}/></button>
+                  <button onClick={() => setIsStateOpen(!isStateOpen)} className="w-full p-6 bg-slate-50 border border-slate-200 rounded-2xl flex justify-between items-center text-xs font-black uppercase tracking-widest">{formData.state || "Search All 50 States"} <ChevronDown size={16} /></button>
+                  <AnimatePresence>{isStateOpen && (<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-full mb-4 left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden z-[100]"><div className="p-4 border-b border-slate-100 flex items-center gap-3"><Search size={16} className="text-slate-400" /><input autoFocus type="text" placeholder="Search state..." className="flex-1 outline-none text-xs font-bold" value={stateSearch} onChange={(e) => setStateSearch(e.target.value)} /></div><div className="max-h-60 overflow-y-auto">{US_STATES.filter(s => s.toLowerCase().includes(stateSearch.toLowerCase())).map(s => (<button key={s} onClick={() => handleSubmission(s)} className="w-full p-4 text-left text-xs font-bold hover:bg-slate-50 border-b border-slate-50">{s}</button>))}</div></motion.div>)}</AnimatePresence>
                 </div>
+              ) : CHAT_FLOW[step].type === 'choice' ? (
+                <div className="grid grid-cols-1 gap-2">{CHAT_FLOW[step].options?.map(opt => (<button key={opt} onClick={() => handleSubmission(opt)} className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 text-left text-xs font-black uppercase tracking-widest hover:border-[#0033FF] transition-all flex justify-between items-center group">{opt} <ChevronRight size={14} /></button>))}</div>
+              ) : (
+                <div className="relative"><input autoFocus type={CHAT_FLOW[step].type} value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubmission(inputValue)} placeholder="Provide details..." className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-[#0033FF] font-semibold" /><button onClick={() => handleSubmission(inputValue)} className="absolute right-3 top-3 p-2.5 bg-[#0033FF] text-white rounded-xl shadow-lg"><Send size={20} /></button></div>
               )}
             </div>
           ) : (
-            <div className="text-center py-4 font-black text-[#0033FF] uppercase tracking-widest">Intake Complete</div>
+             <div className="text-center py-2 flex items-center justify-center gap-3 text-[10px] font-black uppercase text-slate-300 tracking-widest">
+                <Lock size={12} /> {isSubmitted ? "Intake Registry Locked" : "HIPAA Secure Session"}
+             </div>
           )}
         </div>
       </footer>
-      <style jsx global>{`
-        .mask-gradient {
-          mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-          -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
-        }
-      `}</style>
     </div>
   );
 }
